@@ -48,7 +48,7 @@ baud/
 
 ```bash
 # Clone this repo
-git clone <your-repo-url>
+git clone https://github.com/DivyanshBhatia/BAUD.git
 cd baud
 
 # Install dependencies
@@ -113,7 +113,7 @@ After running `scripts/run_synthetic.py`, share these files:
 
 ```bibtex
 @article{baud2026,
-  title={Pain is Personal: Zero-Label Patient Calibration for Personalized 
+  title={Pain is Personal: Zero-Label Patient Calibration for Personalized
          Pain Detection via Baseline-Anchored AU Deviation},
   author={Abhishek G and Raghu Vishnu Jalneela and Dr. Mehala N},
   year={2026}
