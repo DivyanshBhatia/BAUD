@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+*.pyo
+results/
+external/
+*.pth
+*.pt
+.ipynb_checkpoints/
+data/pemf/
+data/biovid/
+*.egg-info/
+dist/
+build/
+.env
