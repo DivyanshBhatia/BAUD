@@ -1,119 +1,123 @@
-# BAUD: Baseline-Anchored AU Deviation for Personalized Pain Detection
+# BAUD: Baseline-Anchored AU Deviation
+## Personalized Pain Detection via Zero-Label Calibration in AU Space
 
-> **Pain is Personal**: Zero-label patient calibration for personalized pain detection via baseline-anchored AU deviation in Action Unit space.
+> **AAAI-27 Target** | Abstracts due July 21, 2026 | Full papers due July 28, 2026
 
-## Key Idea
+### Key Idea
 
-Instead of a one-size-fits-all pain detector, BAUD observes a patient's **resting face** for a few minutes (no labels needed), learns their personal AU baseline, then detects pain as **statistically significant deviations** from that baseline. A stoic patient's small facial change means more than an expressive patient's large one.
+Every person shows pain differently. BAUD watches a patient's resting face
+(no labels needed), learns their personal AU baseline, then detects pain as
+statistically significant deviations from *their* normal.
 
 ```
-Raw Face → [Frozen AU Encoder] → AU Vector → [Baseline Calibration] → Per-AU Z-Score → Pain Score
-                                                      ↑
-                                              Patient's "normal"
-                                              AU profile (unlabeled)
+Face Image → [OpenGraphAU] → AU Vector → [Baseline Calibration] → Z-Scores → [Learned Weights] → Pain Score
+                (frozen)                     (unlabeled)                        (meta-trained)
 ```
+
+### Current Results (PEMF Dataset, 68 subjects, OpenGraphAU-extracted AUs)
+
+| Method | Acc | F1 | AUC | Personalized? | Labels/Patient |
+|--------|-----|-----|-----|---------------|----------------|
+| **BAUD-Meta (Ours)** | **TBD** | **TBD** | **TBD** | Yes | Zero |
+| BAUD-Prior | 0.9887 | 0.9924 | 0.9848 | Yes | Zero |
+| Mahalanobis | 0.9925 | 0.9949 | 0.9995 | Yes | Zero |
+| One-Class SVM | 0.9925 | 0.9949 | 0.9900 | Yes | Zero |
+| Isolation Forest | 0.9662 | 0.9767 | 0.9958 | Yes | Zero |
+| Generic | 0.7707 | 0.8585 | 0.8254 | No | N/A |
+| PSPI | 0.7444 | 0.8534 | 0.5000 | No | N/A |
+
+**Key finding:** ALL personalized methods (97-99%) crush ALL generic methods (50-83% AUC).
+BAUD-Meta (learned weights) is expected to outperform statistical baselines.
+
+---
+
+## Quick Start on Google Colab
+
+### 1. Setup
+```python
+# Upload baud-project-v4.tar.gz to Colab, then:
+!tar -xzf baud-project-v4.tar.gz
+!pip install -q scikit-learn matplotlib openpyxl timm
+
+# Clone OpenGraphAU
+!git clone https://github.com/lingjivoo/OpenGraphAU.git /content/baud/external/OpenGraphAU
+
+# Download ResNet-50 pretrained weights (required by OpenGraphAU)
+import os, torch
+from torchvision.models import resnet50, ResNet50_Weights
+os.makedirs("pretrain_models", exist_ok=True)
+torch.save(resnet50(weights=ResNet50_Weights.DEFAULT).state_dict(),
+           "pretrain_models/resnet50-19c8e357.pth")
+
+# Place OpenGraphAU checkpoint at:
+# /content/baud/external/OpenGraphAU/checkpoints/OpenGprahAU-ResNet50_second_stage.pth
+```
+
+### 2. Mount PEMF Data
+```python
+from google.colab import drive
+drive.mount('/content/drive')
+!mkdir -p /content/pemf
+!cp /content/drive/MyDrive/BAUD/pemf/PEMF_Database.xlsx /content/pemf/
+!unzip -q /content/drive/MyDrive/BAUD/pemf/Pictures.zip -d /content/pemf/pictures/
+```
+
+### 3. Extract AUs (first time only — results are cached)
+```python
+!cd /content/baud && python scripts/run_pemf_opengraphau.py
+```
+
+### 4. Run Meta-Learning (the main experiment)
+```python
+!cd /content/baud && python scripts/run_meta_learning.py
+```
+
+### 5. View Results
+```python
+from IPython.display import Image, display
+display(Image("/content/results/meta_training_curve.png"))
+display(Image("/content/results/meta_final_comparison.png"))
+!cat /content/results/meta_learning_results.txt
+```
+
+---
 
 ## Project Structure
 
 ```
 baud/
-├── README.md
-├── requirements.txt
-├── config.py                  # All hyperparameters and paths
-├── data/
-│   ├── synthetic.py           # Synthetic patient data generator
-│   ├── pemf_loader.py         # PEMF dataset loader
-│   └── biovid_loader.py       # BioVid dataset loader (stub)
+├── config.py                          # Hyperparameters and paths
 ├── models/
-│   ├── au_encoder.py          # AU extraction (OpenGraphAU wrapper)
-│   └── baud.py                # Core BAUD calibrator
-├── training/
-│   ├── meta_train.py          # Meta-learning for deviation weights
-│   └── evaluate.py            # Evaluation pipeline
+│   ├── baud.py                        # Numpy BAUD calibrator (prior weights)
+│   └── baud_learnable.py              # PyTorch meta-learnable BAUD
+├── scripts/
+│   ├── run_meta_learning.py           # ★ Main experiment: meta-learn weights
+│   ├── run_pemf_opengraphau.py        # Full pipeline: images → AUs → BAUD
+│   └── run_pemf_experiment.py         # FACS annotations experiment
+├── data/
+│   └── pemf_loader.py                 # PEMF dataset loader
 ├── baselines/
-│   ├── generic_pain.py        # Generic non-personalized baseline
-│   └── one_class_svm.py       # One-class SVM anomaly baseline
+│   └── methods.py                     # All baseline methods
 ├── utils/
-│   ├── visualization.py       # Plots and clinical reports
-│   └── metrics.py             # Pain detection metrics
-└── scripts/
-    ├── run_synthetic.py       # Quick test on synthetic data
-    ├── run_full_pipeline.py   # Full pipeline with real data
-    └── run_baselines.py       # Run all baselines for comparison
-```
-
-## Quick Start
-
-### 1. Setup
-
-```bash
-# Clone this repo
-git clone <your-repo-url>
-cd baud
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Clone OpenGraphAU (AU encoder)
-git clone https://github.com/lingjivoo/OpenGraphAU.git external/OpenGraphAU
-```
-
-### 2. Download AU Encoder Checkpoint
-
-Download the pretrained OpenGraphAU ResNet-50 model:
-- Go to https://github.com/lingjivoo/OpenGraphAU
-- Download the Stage 2 ResNet-50 checkpoint from the Google Drive link in their README
-- Place it at: `external/OpenGraphAU/checkpoints/OpenGprahAU-ResNet50_second_stage.pth`
-
-### 3. Run on Synthetic Data (No dataset needed!)
-
-```bash
-python scripts/run_synthetic.py
-```
-
-This generates synthetic stoic and expressive patients, runs BAUD + baselines, and produces:
-- `results/pain_scores_comparison.png` — BAUD vs generic pain detection
-- `results/au_deviation_heatmap.png` — per-AU z-score visualization
-- `results/calibration_ablation.png` — effect of calibration duration
-- `results/metrics_table.txt` — quantitative comparison table
-- `results/clinical_report.txt` — sample clinical AU deviation report
-
-### 4. Run on Real Data (PEMF)
-
-```bash
-# After downloading PEMF dataset to data/pemf/
-python scripts/run_full_pipeline.py --dataset pemf --data_dir data/pemf
-```
-
-### 5. Run All Baselines
-
-```bash
-python scripts/run_baselines.py --dataset synthetic
+│   ├── metrics.py                     # Evaluation metrics
+│   └── visualization.py               # Plotting utilities
+├── requirements.txt
+└── README.md
 ```
 
 ## Datasets
 
-| Dataset | Status | How to Get |
-|---------|--------|------------|
-| Synthetic | Ready now | Auto-generated by `data/synthetic.py` |
-| PEMF | Open-access | Download from burjcdigital.urjc.es |
-| BioVid | Requires agreement | nit.ovgu.de/nit/en/BioVid-p-1358.html |
-| X-ITE | Requires agreement | Same group as BioVid |
-
-## Results
-
-After running `scripts/run_synthetic.py`, share these files:
-1. `results/metrics_table.txt` — the numbers
-2. `results/pain_scores_comparison.png` — the main plot
-3. `results/au_deviation_heatmap.png` — per-AU visualization
-4. `results/calibration_ablation.png` — calibration duration analysis
-5. Console output (copy-paste the terminal output)
+| Dataset | Status | Purpose |
+|---------|--------|---------|
+| PEMF | ✅ Downloaded | Prototype + first results (68 subjects) |
+| BioVid | ⏳ Request sent | Primary paper dataset (90 subjects, 4 pain levels) |
+| X-ITE | ⏳ Request sent | Cross-dataset generalization (134 subjects) |
 
 ## Citation
 
 ```bibtex
 @article{baud2026,
-  title={Pain is Personal: Zero-Label Patient Calibration for Personalized 
+  title={Pain is Personal: Zero-Label Patient Calibration for Personalized
          Pain Detection via Baseline-Anchored AU Deviation},
   author={Abhishek G and Raghu Vishnu Jalneela and Dr. Mehala N},
   year={2026}
