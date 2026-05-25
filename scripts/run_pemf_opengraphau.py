@@ -39,7 +39,7 @@ from collections import OrderedDict
 # ============================================================================
 PEMF_ROOT = "/content/pemf"
 PICTURES_DIR = os.path.join(PEMF_ROOT, "pictures", "Pictures", "Modified")
-OPENGRAPHAU_DIR = "/content/baud/external/OpenGraphAU"
+OPENGRAPHAU_DIR = "/content/BAUD/external/OpenGraphAU"
 CHECKPOINT_PATH = os.path.join(
     OPENGRAPHAU_DIR, "checkpoints", "OpenGprahAU-ResNet50_second_stage.pth"
 )
@@ -108,7 +108,7 @@ def load_opengraphau():
         except ImportError:
             print("  ❌ Failed to import OpenGraphAU model.")
             print("     Make sure OpenGraphAU is at:", OPENGRAPHAU_DIR)
-            print("     Try: cd /content/baud/external/OpenGraphAU && ls model/")
+            print("     Try: cd /content/BAUD/external/OpenGraphAU && ls model/")
             return None, None
 
     # Load checkpoint
